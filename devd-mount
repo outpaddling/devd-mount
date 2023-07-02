@@ -75,7 +75,11 @@ usage()
 media_manager()
 {
     : ${MEDIA_MANAGER:=qmediamanager}
-    DISPLAY_ID=$(ps -ax -p `pgrep Xorg` | fgrep libexec/Xorg | awk '{ print $6 }')
+    # This fails uner sddm
+    # FreeBSD quagga.acadix  bacon ~ 1006: ps -axw -p `pgrep Xorg` | fgrep libexec/Xorg
+    # 1413  -  S    0:09.75 /usr/local/libexec/Xorg -nolisten tcp -auth /var/run/sddm/{f5f14042-f00a-4038-9de7-94f125def9a0} -background 
+    # DISPLAY_ID=$(ps -ax -p `pgrep Xorg` | fgrep libexec/Xorg | awk '{ print $6 }')
+    DISPLAY_ID=:0
     
     # Debug
     printf "DISPLAY_ID = $DISPLAY_ID\n" >> $log
