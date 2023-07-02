@@ -94,7 +94,9 @@ try_mount()
 {
     partition=$1
     mount_point=/media/${partition#/dev/}
-    mkdir -p $mount_point
+    if [ ! -e $mount_point ]; then
+	mkdir -p $mount_point
+    fi
     
     # FIXME: chown and chgrp don't work on many filesystems
     # Find a way to set ownership and perms
@@ -110,24 +112,39 @@ try_mount()
     #   command is extremely limited.  We simply try supported filesystems.
     ##########################################################################
     
-    printf "$partition $mount_point\n" >> $log
-    if /usr/local/sbin/mount.exfat $partition $mount_point; then
+    printf "$partition $mount_point PID=$$\n" >> $log
+    
+    # FIXME:
+    # devd notification seems to come before the device is ready to mount
+    # Find a better way to determine when the the device is ready
+    sleep 2
+    
+    # Note: Failed mount attempts appear to trigger new notifications
+    # Use fstype as much as possible
+    
+    if [ "$(fstyp $partition)" = "exfat" ] && /usr/local/sbin/mount.exfat $partition $mount_point; then
 	printf "Mounted exfat.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount_msdosfs $partition $mount_point; then
+    elif [ "$(fstyp $partition)" = "msdosfs" ] && /sbin/mount_msdosfs $partition $mount_point; then
 	printf "Mounted FAT.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount_cd9660 $partition $mount_point; then
+    elif [ "$(fstyp $partition)" = "cd9660" ] && /sbin/mount_cd9660 $partition $mount_point; then
 	printf "Mounted cd9660.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount_udf $partition $mount_point; then
-	printf "Mounted UDF.\n" >> $log
+    elif [ "$(fstyp $partition)" = "ufs" ] && /sbin/mount $partition $mount_point; then
+	printf "Mounted UFS.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/ntfs-3g $partition $mount_point; then
+    elif [ "$(fstyp $partition)" = "ntfs" ] && /sbin/ntfs-3g $partition $mount_point; then
 	printf "Mounted NTFS.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount $partition $mount_point; then
-	printf "Mounted UFS.\n" >> $log
+    elif /sbin/mount_udf $partition $mount_point 2>> $log; then
+	printf "Mounted UDF.\n" >> $log
+	media_manager $mount_point
+    # fstyp currently shows ext2fs for ext4
+    # Not sure if we can rely on this for the future
+    elif /usr/local/bin/lklfuse -o type="ext4" -o intr -o uid=0 -o gid=0 \
+	    -o umask=002 $partition $mount_point 2>> $log; then
+	printf "Mounted ext4.\n" >> $log
 	media_manager $mount_point
     else
 	printf "Could not mount $partition.\n" >> $log
@@ -151,7 +168,7 @@ fi
 log=/var/log/devd-mount/${partition#/dev/*}
 mkdir -p $(dirname $log)
 rm -f $log
-printf "$@" > $log
+printf "Args: $@\n" > $log
 
 conf_file=/usr/local/etc/devd-mount.conf
 if [ -e $conf_file ]; then
