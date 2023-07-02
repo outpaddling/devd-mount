@@ -75,13 +75,13 @@ usage()
 media_manager()
 {
     : ${MEDIA_MANAGER:=qmediamanager}
-    DISPLAY_ID=$(ps -ax -p `pgrep bin/X` | fgrep bin/X | awk '{ print $6 }')
+    DISPLAY_ID=$(ps -ax -p `pgrep Xorg` | fgrep libexec/Xorg | awk '{ print $6 }')
     
     # Debug
-    # printf "DISPLAY_ID = $DISPLAY_ID\n" >> $log
+    printf "DISPLAY_ID = $DISPLAY_ID\n" >> $log
     
     # FIXME: Determine owner of :0
-    display_users=$(ps aewwj | grep "DISPLAY=${DISPLAY_ID}" | awk '{ print $1 }' | sort -u)
+    display_users=$(ps -aewwj | grep "DISPLAY=${DISPLAY_ID}" | awk '{ print $1 }' | sort -u)
     for user in $display_users; do
 	if su -l $user -c "env DISPLAY=$DISPLAY_ID $MEDIA_MANAGER $mount_point"; then
 	    break;
@@ -114,7 +114,7 @@ try_mount()
     if /usr/local/sbin/mount.exfat $partition $mount_point; then
 	printf "Mounted exfat.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount_msdos $partition $mount_point; then
+    elif /sbin/mount_msdosfs $partition $mount_point; then
 	printf "Mounted FAT.\n" >> $log
 	media_manager $mount_point
     elif /sbin/mount_cd9660 $partition $mount_point; then
@@ -123,7 +123,7 @@ try_mount()
     elif /sbin/mount_udf $partition $mount_point; then
 	printf "Mounted UDF.\n" >> $log
 	media_manager $mount_point
-    elif /sbin/mount_ntfs $partition $mount_point; then
+    elif /sbin/ntfs-3g $partition $mount_point; then
 	printf "Mounted NTFS.\n" >> $log
 	media_manager $mount_point
     elif /sbin/mount $partition $mount_point; then
@@ -147,9 +147,11 @@ partition=$1
 if ! echo $partition | grep -q '^/dev/'; then
     partition=/dev/$partition
 fi
+
 log=/var/log/devd-mount/${partition#/dev/*}
 mkdir -p $(dirname $log)
 rm -f $log
+printf "$@" > $log
 
 conf_file=/usr/local/etc/devd-mount.conf
 if [ -e $conf_file ]; then
