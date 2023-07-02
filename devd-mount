@@ -1,0 +1,158 @@
+#!/bin/sh -e
+
+##########################################################################
+#   Synopsis:
+#       devd-mount [/dev/]partition
+#
+#   Description:
+#       .B devd-mount
+#       is a script for mounting external media on FreeBSD.  It is
+#       normally invoked by /usr/local/etc/devd/devd-mount.conf,
+#       which is run by the devd(8) service upon creation of
+#       a new device node such as /dev/da0.  This typically occurs
+#       when a USB drive is inserted, for example.
+#
+#       The device name should contain a filesystem recognized
+#       by FreeBSD or by fusefs, such as EXFAT, FAT32, FAS16, NTFS,
+#       ISO 9660 (CDs), UDF (DVDs), of UFS (FreeBSD native).
+#
+#       The mount point for a device is /media/device-name, e.g.
+#       /dev/da0p1 is mounted on /media/da0p1.
+#
+#       The configuration file /usr/local/etc/devd-mount.conf
+#       can be used to control
+#       ownership and permissions on the mount point, and the program
+#       invoked upon a successful mount.  Defaults are shown below.
+#       
+#       .nf
+#       .na
+#       MEDIA_MANAGER=/usr/local/bin/qmediamanager
+#       GROUP=operator
+#       MODE=775
+#       .ad
+#       .di
+#
+#       The auto-automount-setup(1) script, part of sysutils/auto-admin
+#       will configure a FreeBSD system to use devd-mount.
+#       
+#   Arguments:
+#       device  Name of device node, with or without /dev/ prefix
+#       
+#   Returns:
+#       0 upon successful mount, non-zero error codes otherwise
+#
+#   Examples:
+#       devd-mount da0p1
+#
+#   Files:
+#       /usr/local/etc/devd-mount.conf
+#       /usr/local/etc/devd/devd-mount.conf
+#
+#   See also:
+#       devd(8), mount(8), qmediamanager(1), npmount(1)
+#       
+#   History:
+#   Date        Name        Modification
+#   2023-07-01  J Bacon     Derived from devpub-mount
+##########################################################################
+
+usage()
+{
+    printf "Usage: $0 [/dev/]partition\n"
+    exit 1
+}
+
+
+##########################################################################
+#   Function description:
+#       Launch chosen media manager program on the local X11 display
+#       
+#   History:
+#   Date        Name        Modification
+#   2023-06-15  J Bacon     Begin
+##########################################################################
+
+media_manager()
+{
+    : ${MEDIA_MANAGER:=qmediamanager}
+    DISPLAY_ID=$(ps -ax -p `pgrep bin/X` | fgrep bin/X | awk '{ print $6 }')
+    
+    # Debug
+    # printf "DISPLAY_ID = $DISPLAY_ID\n" >> $log
+    
+    # FIXME: Determine owner of :0
+    display_users=$(ps aewwj | grep "DISPLAY=${DISPLAY_ID}" | awk '{ print $1 }' | sort -u)
+    for user in $display_users; do
+	if su -l $user -c "env DISPLAY=$DISPLAY_ID $MEDIA_MANAGER $mount_point"; then
+	    break;
+	fi
+    done
+}
+
+
+try_mount()
+{
+    partition=$1
+    mount_point=/media/${partition#/dev/}
+    mkdir -p $mount_point
+    
+    # FIXME: chown and chgrp don't work on many filesystems
+    # Find a way to set ownership and perms
+    if [ -n "$GROUP" ]; then
+	chgrp $GROUP $mount_point
+    fi
+    if [ -n "$MODE" ]; then
+	chmod $MODE $mount_point
+    fi
+    
+    ##########################################################################
+    #   Determining filesystem type if not straightforward.  The fstyp
+    #   command is extremely limited.  We simply try supported filesystems.
+    ##########################################################################
+    
+    printf "$partition $mount_point\n" >> $log
+    if /usr/local/sbin/mount.exfat $partition $mount_point; then
+	printf "Mounted exfat.\n" >> $log
+	media_manager $mount_point
+    elif /sbin/mount_msdos $partition $mount_point; then
+	printf "Mounted FAT.\n" >> $log
+	media_manager $mount_point
+    elif /sbin/mount_cd9660 $partition $mount_point; then
+	printf "Mounted cd9660.\n" >> $log
+	media_manager $mount_point
+    elif /sbin/mount_udf $partition $mount_point; then
+	printf "Mounted UDF.\n" >> $log
+	media_manager $mount_point
+    elif /sbin/mount_ntfs $partition $mount_point; then
+	printf "Mounted NTFS.\n" >> $log
+	media_manager $mount_point
+    elif /sbin/mount $partition $mount_point; then
+	printf "Mounted UFS.\n" >> $log
+	media_manager $mount_point
+    else
+	printf "Could not mount $partition.\n" >> $log
+	return 1
+    fi
+}
+
+
+##########################################################################
+#   Main
+##########################################################################
+
+if [ $# != 1 ]; then
+    usage
+fi
+partition=$1
+if ! echo $partition | grep -q '^/dev/'; then
+    partition=/dev/$partition
+fi
+log=/var/log/devd-mount/${partition#/dev/*}
+mkdir -p $(dirname $log)
+rm -f $log
+
+conf_file=/usr/local/etc/devd-mount.conf
+if [ -e $conf_file ]; then
+    . $conf_file
+fi
+try_mount $partition
