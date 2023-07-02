@@ -74,20 +74,53 @@ usage()
 
 media_manager()
 {
-    : ${MEDIA_MANAGER:=qmediamanager}
-    # This fails uner sddm
-    # FreeBSD quagga.acadix  bacon ~ 1006: ps -axw -p `pgrep Xorg` | fgrep libexec/Xorg
-    # 1413  -  S    0:09.75 /usr/local/libexec/Xorg -nolisten tcp -auth /var/run/sddm/{f5f14042-f00a-4038-9de7-94f125def9a0} -background 
-    # DISPLAY_ID=$(ps -ax -p `pgrep Xorg` | fgrep libexec/Xorg | awk '{ print $6 }')
-    DISPLAY_ID=:0
+    if [ $# != 3 ]; then
+	printf "Usage: media_manager mount-point partition fstype\n" >> /dev/stderr
+	exit 1
+    fi
+    mount_point=$1
+    device=$2
+    fs_type=$3
     
+    # This fails under SDDM:
+    # DISPLAY_ID=$(ps -ax -p `pgrep Xorg` | fgrep libexec/Xorg | awk '{ print $6 }')
+    # ps -axw -p `pgrep Xorg` | fgrep libexec/Xorg
+    # 1413  -  S    0:09.75 /usr/local/libexec/Xorg -nolisten tcp -auth /var/run/sddm/{f5f14042-f00a-4038-9de7-94f125def9a0} -background 
+    DISPLAY_ID=:0
     # Debug
     printf "DISPLAY_ID = $DISPLAY_ID\n" >> $log
+    
+    # Build command to run following mount
+    : ${MEDIA_MANAGER:="qmediamanager mount-point device fstype"}
+    no_tabs=$(echo "$MEDIA_MANAGER" | tr '\t' ' ')
+    cmd=$(echo "$no_tabs" | cut -d ' ' -f 1)
+    for arg in $(echo "$no_tabs" | cut -d ' ' -f 2-); do
+	echo $arg
+	case $arg in
+	mount-point)
+	    cmd="$cmd $mount_point"
+	    ;;
+	
+	device)
+	    cmd="$cmd $device"
+	    ;;
+	
+	fs-type)
+	    cmd="$cmd $fs_type"
+	    ;;
+	
+	*)
+	    cmd="$cmd $arg"
+	    ;;
+	esac
+    done
+    
+    printf "cmd = $cmd\n"
     
     # FIXME: Determine owner of :0
     display_users=$(ps -aewwj | grep "DISPLAY=${DISPLAY_ID}" | awk '{ print $1 }' | sort -u)
     for user in $display_users; do
-	if su -l $user -c "env DISPLAY=$DISPLAY_ID $MEDIA_MANAGER $mount_point"; then
+	if su -l $user -c "env DISPLAY=$DISPLAY_ID $cmd"; then
 	    break;
 	fi
     done
@@ -124,26 +157,26 @@ try_mount()
     sleep 2
     
     # Note: Failed mount attempts appear to trigger new notifications
-    # Use fstype as much as possible
+    # Use fstyp as much as possible
     
     if [ "$(fstyp $partition)" = "exfat" ] && /usr/local/sbin/mount.exfat $partition $mount_point; then
 	printf "Mounted exfat.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition exfat
     elif [ "$(fstyp $partition)" = "msdosfs" ] && /sbin/mount_msdosfs $partition $mount_point; then
 	printf "Mounted FAT.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition fat
     elif [ "$(fstyp $partition)" = "cd9660" ] && /sbin/mount_cd9660 $partition $mount_point; then
 	printf "Mounted cd9660.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition cd9660
     elif [ "$(fstyp $partition)" = "ufs" ] && /sbin/mount $partition $mount_point; then
 	printf "Mounted UFS.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition ufs
     elif [ "$(fstyp $partition)" = "ntfs" ] && /sbin/ntfs-3g $partition $mount_point; then
 	printf "Mounted NTFS.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition ntfs
     elif /sbin/mount_udf $partition $mount_point 2>> $log; then
 	printf "Mounted UDF.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition udf
     # fstyp currently shows ext2fs for ext4
     # Not sure if we can rely on this for the future, but without
     # checking we end up with multiple failed lklfuse processes
@@ -151,7 +184,7 @@ try_mount()
 	    -o type="ext4" -o intr -o uid=0 -o gid=0 \
 	    -o umask=002 $partition $mount_point 2>> $log; then
 	printf "Mounted ext4.\n" >> $log
-	media_manager $mount_point
+	media_manager $mount_point $partition ext4
     else
 	printf "Could not mount $partition.\n" >> $log
 	return 1
