@@ -116,6 +116,7 @@ media_manager()
     done
     
     printf "cmd = $cmd\n"
+    printf "Running $cmd\n" >> $log
     
     # FIXME: Determine owner of :0
     display_users=$(ps -aewwj | grep "DISPLAY=${DISPLAY_ID}" | awk '{ print $1 }' | sort -u)
