@@ -145,8 +145,11 @@ try_mount()
     fi
     
     ##########################################################################
-    #   Determining filesystem type if not straightforward.  The fstyp
-    #   command is extremely limited.  We simply try supported filesystems.
+    #   Determining filesystem type is not straightforward.  The fstyp
+    #   command is extremely limited.  We use it where we can and will
+    #   have to resort to other hacks or simply try mounting in other
+    #   cases, though failed mounts seem to generate more devd events,
+    #   leading to multiple devd-mount processes for the same device.
     ##########################################################################
     
     printf "$partition $mount_point PID=$$\n" >> $log
