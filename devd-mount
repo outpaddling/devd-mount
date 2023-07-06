@@ -191,6 +191,11 @@ try_mount()
 	media_manager $mount_point $partition ext4 2>> $log
     else
 	printf "Could not mount $partition.\n" >> $log
+	# Notify user about normal partitions (da0p1, da0s1) that
+	# cannot be mounted.
+	if echo $partition | grep -Eq "da[0-9]+[a-z]+[0-9]+"; then
+	    media_manager $mount_point $partition "unknown"
+	fi
 	return 1
     fi
 }
