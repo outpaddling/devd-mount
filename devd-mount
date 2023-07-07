@@ -119,8 +119,8 @@ media_manager()
     printf "Running $cmd\n" >> $log
     
     # FIXME: Determine owner of :0
-    ps -aewwj | grep "DISPLAY=$DISPLAY_ID" >> $log
-    display_users=$(ps -aewwj | grep "DISPLAY=$DISPLAY_ID" | awk '{ print $1 }' | sort -u)
+    ps -aexwwj | grep "DISPLAY=$DISPLAY_ID" >> $log
+    display_users=$(ps -aexwwj | grep "DISPLAY=$DISPLAY_ID" | awk '{ print $1 }' | sort -u)
     printf "display_users = $display_users\n" >> $log
     for user in $display_users; do
         printf "Trying su -l $user -c env DISPLAY=$DISPLAY_ID $cmd\n" >> $log
