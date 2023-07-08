@@ -183,7 +183,7 @@ try_mount()
 	media_manager $mount_point $partition ntfs 2>> $log
     elif /usr/local/bin/hfsdump $partition 2>> $log && /usr/local/bin/hfsfuse $partition $mount_point 2>> $log; then
 	printf "Mounted Apple HFS.\n" >> $log
-	media_manager $mount_point $partition "Apple HFS" 2>> $log
+	media_manager $mount_point $partition "Apple-HFS" 2>> $log
     elif /sbin/mount_udf $partition $mount_point 2>> $log; then
 	printf "Mounted UDF.\n" >> $log
 	media_manager $mount_point $partition udf 2>> $log
