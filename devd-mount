@@ -177,6 +177,12 @@ try_mount()
 	media_manager $mount_point $partition cd9660 2>> $log
     elif [ "$(fstyp $partition)" = "ufs" ] && /sbin/mount $partition $mount_point 2>> $log; then
 	printf "Mounted UFS.\n" >> $log
+	if [ -n "$GROUP" ]; then
+	    chgrp $GROUP $mount_point
+	fi
+	if [ -n "$MODE" ]; then
+	    chmod $MODE $mount_point
+	fi
 	media_manager $mount_point $partition ufs 2>> $log
     elif [ "$(fstyp $partition)" = "ntfs" ] && /sbin/ntfs-3g $partition $mount_point 2>> $log; then
 	printf "Mounted NTFS.\n" >> $log
