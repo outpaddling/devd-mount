@@ -123,7 +123,7 @@ media_manager()
     display_users=$(ps -aexwwj | grep "DISPLAY=$DISPLAY_ID" | awk '{ print $1 }' | sort -u)
     printf "display_users = $display_users\n" >> $log
     for user in $display_users; do
-        printf "Trying su -l $user -c env DISPLAY=$DISPLAY_ID $cmd\n" >> $log
+	printf "Trying su -l $user -c env DISPLAY=$DISPLAY_ID $cmd\n" >> $log
 	if su -l $user -c "env DISPLAY=$DISPLAY_ID $cmd"; then
 	    break;
 	fi
@@ -181,6 +181,9 @@ try_mount()
     elif [ "$(fstyp $partition)" = "ntfs" ] && /sbin/ntfs-3g $partition $mount_point 2>> $log; then
 	printf "Mounted NTFS.\n" >> $log
 	media_manager $mount_point $partition ntfs 2>> $log
+    elif /usr/local/bin/hfsdump $partition 2>> $log && /usr/local/bin/hfsfuse $partition $mount_point 2>> $log; then
+	printf "Mounted Apple HFS.\n" >> $log
+	media_manager $mount_point $partition "Apple HFS" 2>> $log
     elif /sbin/mount_udf $partition $mount_point 2>> $log; then
 	printf "Mounted UDF.\n" >> $log
 	media_manager $mount_point $partition udf 2>> $log
