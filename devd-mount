@@ -197,7 +197,7 @@ try_mount()
     # Not sure if we can rely on this for the future, but without
     # checking we end up with multiple failed lklfuse processes
     elif [ "$(fstyp $partition)" = "ext2fs" ] && /usr/local/bin/lklfuse \
-	    -o type="ext4" -o intr -o uid=0 -o gid=0 \
+	    -o allow_other -o type="ext4" -o intr -o uid=0 -o gid=0 \
 	    -o umask=002 $partition $mount_point 2>> $log; then
 	printf "Mounted ext4.\n" >> $log
 	media_manager $mount_point $partition ext4 2>> $log
