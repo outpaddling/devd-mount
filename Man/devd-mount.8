@@ -22,13 +22,13 @@ device  Name of device node, with or without /dev/ prefix
 
 .B devd-mount
 is a script for mounting external media on FreeBSD.  It is
-normally invoked by the devd(8) service upon creation of
-a new device node such as /dev/da0, such as when a USB drive is
-inserted.
+normally invoked by /usr/local/etc/devd/devd-mount.conf,
+which is run by the devd(8) service upon creation of
+a new device node such as /dev/da0.  This typically occurs
+when a USB drive is inserted, for example.
 
-The device name supplied by the caller (normally devd)
-must contain a filesystem recognized
-by FreeBSD or by fusefs, such as EXFAT, FAT32, FAT16, NTFS,
+The device name should contain a filesystem recognized
+by FreeBSD or by fusefs, such as EXFAT, FAT32, FAS16, NTFS,
 ISO 9660 (CDs), UDF (DVDs), of UFS (FreeBSD native).
 
 The mount point for a device is /media/device-name, e.g.
@@ -37,38 +37,18 @@ The mount point for a device is /media/device-name, e.g.
 The configuration file /usr/local/etc/devd-mount.conf
 can be used to control
 ownership and permissions on the mount point, and the program
-invoked upon a successful mount.  It uses Bourne shell syntax to
-define any of three variables that control the behavior of
-devd-mount:
-
-.B MEDIA_MANAGER
-is a command to run after successfully mounting a partition.
-It may be followed by any arguments, three of which have special meaning
-and are replaced by device info:
-
-"mount-point" is replaced by the mount point, e.g. /media/da0p1
-"device" is replaced by the device name, e.g. /dev/da0p1
-"fs-type" is replaced by the filesystem type, e.g. exfat, ufs2, etc.
-
-.B GROUP
-is the group ownership to be set on the mount point.
-
-.B MODE
-is the permissions to set on the mount point.
-
-Defaults are shown below.
+invoked upon a successful mount.  Defaults are shown below.
 
 .nf
 .na
-MEDIA_MANAGER=/usr/local/bin/qmediamanager mount-point device fs-type
+MEDIA_MANAGER=/usr/local/bin/qmediamanager
 GROUP=operator
 MODE=775
 .ad
-.di
+.fi
 
 The auto-automount-setup(1) script, part of sysutils/auto-admin
-will configure a FreeBSD system to use
-.B devd-mount.
+will configure a FreeBSD system to use devd-mount.
 
 .SH RETURN VALUES
 
@@ -78,15 +58,14 @@ will configure a FreeBSD system to use
 .nf
 .na
 devd-mount da0p1
-devd-mount /dev/da0p1
 .ad
 .fi
 
 .SH FILES
 .nf
 .na
-/usr/local/etc/devd-mount.conf          devd-mount config
-/usr/local/etc/devd/devd-mount.conf     devd rules
+/usr/local/etc/devd-mount.conf
+/usr/local/etc/devd/devd-mount.conf
 .ad
 .fi
 

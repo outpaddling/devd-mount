@@ -30,7 +30,7 @@
 #       GROUP=operator
 #       MODE=775
 #       .ad
-#       .di
+#       .fi
 #
 #       The auto-automount-setup(1) script, part of sysutils/auto-admin
 #       will configure a FreeBSD system to use devd-mount.
